@@ -2,6 +2,28 @@ import psycopg2
 from psycopg2 import Error
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
+# возможные значения для action: CREATE/DROP
+def create_or_drop_database(host, user, port, password, database, action):
+    try:
+        connection = psycopg2.connect(host=host, user=user, port=port, password=password)
+        cursor = connection.cursor()  
+        connection.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+
+        query = "{0} DATABASE {1};".format(action, database)
+        cursor.execute(query)
+
+        print("PostgreSQL database created/dropped successfully)")
+
+    except (Exception, psycopg2.DatabaseError) as error:
+        print("Error while connection to PostgreSQL", error)
+
+    finally:
+        if (connection):
+            cursor.close()
+            connection.close()
+            print("PostgreSQL connection is closed")
+        
+
 class Database(object):
     def __init__(self, host = "127.0.0.1", database = "test", user = "postgres", port = 5432, password = "fgt6oij12c"):
 
@@ -35,21 +57,6 @@ class Database(object):
         self.cursor.close()
         self.connection.close()
         print("PostgreSQL connection is closed")
-
-
-    # возможные значения для action: CREATE/DROP
-    def create_or_drop_database(self, action):
-        try:
-            self.connection.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
-
-            sql_create_database = "{0} DATABASE {1};".format(action, self.database)
-            self.cursor.execute(sql_create_database)
-
-            print("PostgreSQL database created/dropped successfully)")
-
-        except (Exception, psycopg2.DatabaseError) as error:
-            print("Error while connection to PostgreSQL", error)
-
 
     def create_table(self, name_of_table, columns, data_type_and_constraints):
         try:
@@ -85,7 +92,9 @@ class Database(object):
         try: 
             query = "Update {0} set {1} = %s where {2} = %s".format(table, columns, rows)
 
-            # для архивации
+            # для архивации !!!!
+
+            # для архивации !!!!
 
             # если вдруг они окадутся неитерируемыми объектами
             values = tuple(values)
@@ -165,22 +174,4 @@ class Database(object):
 # затем закрываем соединение (a.disconnect())
 
 if __name__ == "__main__":
-    columns = ["id", "model", "price"]
-    descr = ["INTEGER", "VARCHAR (50)", "REAL"]
-
-    a = Database(database="to_delete")
-    a.connect()
-    a.insert("table_with_phones", ("id", "model"), [(3, "Xiaomi"), (6, "Mezu")])
-    
-    # a.create_or_drop_database("to_delete", "CREATE")
-    # a.create_table(name_of_database="to_delete", name_of_table="table_with_phones", columns=columns, data_type_and_constraints=descr)
-    # a.insert("table_with_phones", ["id", "model"], [(1, "Pixel"), (2, "iPhone")], "to_delete")
-
-    # lupa = a.select_n_first_rows("table_with_phones", "to_delete", 3)
-    
-    # pupa = a.select_columns("table_with_phones", 2, ["id", "price"], "id = 4")
-    # print(pupa)
-
-    # a.update("table_with_phones", "id", (1,2), "price", (30, 40))
-    a.disconnect()
-
+    pass
