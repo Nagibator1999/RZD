@@ -3,12 +3,7 @@ from psycopg2 import Error
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 
 class Database(object):
-    def __init__(self, 
-                host = "localhost", 
-                database = "test",
-                user = "postgres", 
-                port = 5432, 
-                password = "fgt6oij12c"):
+    def __init__(self, host = "127.0.0.1", database = "test", user = "postgres", port = 5432, password = "fgt6oij12c"):
 
         self.host = host
         self.database = database
@@ -18,12 +13,9 @@ class Database(object):
         self.connection = None
         self.cursor = None
 
-    # пересмотреть зачем оно
-    # ну рил по-моему можно и нужно без неё
-    def connect(self):
-        if (self.connection):
-            print("Connection already open")
-            return
+    # подсоединяемся к базе данных
+    # cur = True / создавать курсор или нет (по умолчанию - да)
+    def connect(self, cur = True):
         try:
             self.connection = psycopg2.connect(
                 host=self.host,
@@ -31,27 +23,26 @@ class Database(object):
                 user=self.user,
                 port=self.port,
                 password=self.password)
+            if (cur):
+                self.cursor = self.connection.cursor()
 
             print("Connection to PostgreSQL established successfully")
 
         except (Exception, psycopg2.DatabaseError) as error:
             print("Error while connection to PostgreSQL", error)
 
+    def disconnect(self):
+        self.cursor.close()
+        self.connection.close()
+        print("PostgreSQL connection is closed")
+
 
     # возможные значения для action: CREATE/DROP
-    def create_or_drop_database(self, name_of_database, action):
-
-        # очень крутая штука
-        # params = config()
-        # conn = psycopg2.connect(**params)
-
+    def create_or_drop_database(self, action):
         try:
-            self.connection = psycopg2.connect(user = self.user, password = self.password, host = self.host, port = self.port)
-            self.cursor = self.connection.cursor()
+            self.connection.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
 
-            self.connection.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT) # хз зачем это но без него не работает
-
-            sql_create_database = "{0} DATABASE {1};".format(action, name_of_database)
+            sql_create_database = "{0} DATABASE {1};".format(action, self.database)
             self.cursor.execute(sql_create_database)
 
             print("PostgreSQL database created/dropped successfully)")
@@ -59,19 +50,9 @@ class Database(object):
         except (Exception, psycopg2.DatabaseError) as error:
             print("Error while connection to PostgreSQL", error)
 
-        finally:
-            if (self.connection):
-                self.cursor.close()
-                self.connection.close()
-                print("PostgreSQL connection is closed")
 
-
-    # тут всё тоже гладко
-    def create_table(self, name_of_database, name_of_table, columns, data_type_and_constraints):
+    def create_table(self, name_of_table, columns, data_type_and_constraints):
         try:
-            self.connection = psycopg2.connect(user = self.user, password = self.password, host = self.host, port = self.port, database = name_of_database)
-            self.cursor = self.connection.cursor()
-
             query_create_table = "CREATE TABLE {} (\n".format(name_of_table)
 
             query_tail = ""
@@ -82,49 +63,54 @@ class Database(object):
             self.cursor.execute(query_create_table)
             self.connection.commit()
 
-            print("PostgreSQL table {0} in database {1} created successfully)".format(name_of_table, name_of_database))
+            print("PostgreSQL table {0} in database {1} created successfully)".format(name_of_table, self.database))
 
         except (Exception, psycopg2.DatabaseError) as error:
-            print("Error while connection to PostgreSQL", error)
+            print("Error while connection to PostgreSQL", error)       
 
-        finally:
-            if (self.connection):
-                self.cursor.close()
-                self.connection.close()
-                print("PostgreSQL connection is closed")        
-
-    def insert(self, table, array_of_columns, array_of_values, name_of_database):
+    def insert(self, table, columns, values):
         try:
-            self.connection = psycopg2.connect(user = self.user, password = self.password, host = self.host, port = self.port, database = name_of_database)
-            self.cursor = self.connection.cursor()
-                
-            columns = str(array_of_columns).replace("[","(").replace("]",")").replace("'", "")
-            sql_insert_query = "INSERT INTO " + table + " " + columns + " VALUES ("
-            for i in range(len(array_of_columns)):
-                sql_insert_query += "%s,"
-            sql_insert_query = sql_insert_query[:-1] + ")"
+            query = "INSERT INTO {0} {1} VALUES (".format(table, columns).replace("'","")
+            query += ("%s,"*len(columns))[:-1]+")"
+            values = tuple(values)
 
-            self.cursor.executemany(sql_insert_query, array_of_values)
+            self.cursor.executemany(query, values)
             self.connection.commit()
             print(self.cursor.rowcount, "Record inserted successfully into {} table".format(table))
 
         except (Exception, psycopg2.DatabaseError) as error:
             print("Error while connection to PostgreSQL", error)
 
-        finally:
-            if (self.connection):
-                self.cursor.close()
-                self.connection.close()
-                print("PostgreSQL connection is closed")
+    def update(self, table, rows, value_of_row, columns, values):
+        try: 
+            query = "Update {0} set {1} = %s where {2} = %s".format(table, columns, rows)
 
-    def select_n_first_rows(self, table, name_of_database, number_of_rows):
+            # для архивации
+
+            # если вдруг они окадутся неитерируемыми объектами
+            values = tuple(values)
+            value_of_row = tuple(value_of_row)
+
+            records = list()
+
+            for record, row in zip(values, value_of_row):
+                tmp = [record, row]
+                records.append(tuple(tmp))
+
+            print(records)
+            self.cursor.executemany(query, records)
+            self.connection.commit()
+
+            print("Records Updated")
+
+        except (Exception, psycopg2.DatabaseError) as error:
+            print("Error while connection to PostgreSQL", error)
+
+    def select_n_first_rows(self, table, number_of_rows):
+        result = list()
         try:
-            self.connection = psycopg2.connect(user = self.user, password = self.password, host = self.host, port = self.port, database = name_of_database)
-            self.cursor = self.connection.cursor()
-            
             select_query = "SELECT * FROM {}".format(table)
 
-            result = list()
             self.cursor.execute(select_query)
 
             for i in range(number_of_rows):
@@ -135,25 +121,18 @@ class Database(object):
         except (Exception, psycopg2.DatabaseError) as error:
             print("Error while connection to PostgreSQL", error)
 
-        finally:
-            if (self.connection):
-                self.cursor.close()
-                self.connection.close()
-                print("PostgreSQL connection is closed")
         return result
 
-    def select_columns(self, table, name_of_database, number_of_rows, columns):
+    def select_columns(self, table, number_of_rows, columns, where = ""):
+        result = dict()
         try:
-            self.connection = psycopg2.connect(user = self.user, password = self.password, host = self.host, port = self.port, database = name_of_database)
-            self.cursor = self.connection.cursor()
-            
-            result = dict()
-
             if type(columns) == str:
                 columns = list(columns)
 
             for column in columns:
                 select_query = "SELECT {0} FROM {1}".format(column,table)
+                if (where != ""):
+                    select_query += " where {}".format(where)
                 self.cursor.execute(select_query)
                 if number_of_rows == "ALL":
                     fatched = self.cursor.fetchall()
@@ -167,19 +146,11 @@ class Database(object):
         except (Exception, psycopg2.DatabaseError) as error:
             print("Error while connection to PostgreSQL", error)
 
-        finally:
-            if (self.connection):
-                self.cursor.close()
-                self.connection.close()
-                print("PostgreSQL connection is closed")
         return result
 
     # получаем имена колонок
-    def get_columns_names(self, table, name_of_database):
+    def get_columns_names(self, table):
         try:
-            self.connection = psycopg2.connect(user = self.user, password = self.password, host = self.host, port = self.port, database = name_of_database)
-            self.cursor = self.connection.cursor()
-            
             col_names = []
             for elt in self.cursor.description:
                 col_names.append(elt[0])
@@ -187,24 +158,29 @@ class Database(object):
         except (Exception, psycopg2.DatabaseError) as error:
             print("Error while connection to PostgreSQL", error)
 
-        finally:
-            if (self.connection):
-                self.cursor.close()
-                self.connection.close()
-                print("PostgreSQL connection is closed") 
         return col_names      
             
-        
+# сначала устанавливаем соединение (a.connect())
+# потом делаем то нам нужно
+# затем закрываем соединение (a.disconnect())
+
 if __name__ == "__main__":
     columns = ["id", "model", "price"]
     descr = ["INTEGER", "VARCHAR (50)", "REAL"]
 
-    a = Database()
-    # a.connect()
+    a = Database(database="to_delete")
+    a.connect()
+    a.insert("table_with_phones", ("id", "model"), [(3, "Xiaomi"), (6, "Mezu")])
+    
     # a.create_or_drop_database("to_delete", "CREATE")
     # a.create_table(name_of_database="to_delete", name_of_table="table_with_phones", columns=columns, data_type_and_constraints=descr)
     # a.insert("table_with_phones", ["id", "model"], [(1, "Pixel"), (2, "iPhone")], "to_delete")
 
     # lupa = a.select_n_first_rows("table_with_phones", "to_delete", 3)
-    pupa = a.select_columns("table_with_phones", "to_delete", 2, ["id", "price"])
-    print(pupa)
+    
+    # pupa = a.select_columns("table_with_phones", 2, ["id", "price"], "id = 4")
+    # print(pupa)
+
+    # a.update("table_with_phones", "id", (1,2), "price", (30, 40))
+    a.disconnect()
+
