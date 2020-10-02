@@ -2,6 +2,7 @@ import psycopg2
 from psycopg2 import Error
 from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
 import datetime
+import pandas as pd
 
 # возможные значения для action: CREATE/DROP
 def create_or_drop_database(host, user, port, password, database, action):
@@ -231,10 +232,42 @@ class Database(object):
 # затем закрываем соединение (a.disconnect())
 
 if __name__ == "__main__":
-    a = Database(database="to_delete")
-    a.connect()
-    # a.update("table_with_phones", "id", (1,2), "price", (3000, 450))
-    a.update_one("table_with_phones", "price", "model", "'Xiaomi'", 120)
-    something = a.select("table_with_phones", "price", "id < 6")
-    print(something)
-    a.disconnect()
+    df = pd.read_excel('Сигналы.xlsx', sheet_name='МПК')
+    # list_of_column_names = list()
+    # list_of_column_names.append("id")
+    # for col_name in df.columns:
+    #     if (col_name == "Xmin"):
+    #         col_name = "X_min"
+    #     if (col_name == "Xmax"):
+    #         col_name = "X_max"         
+    #     list_of_column_names.append(col_name)
+    # list_of_column_names = tuple(list_of_column_names)
+
+    # types = ("SERIAL PRIMARY KEY", "INT", "VARCHAR (50)", "VARCHAR (50)", "VARCHAR (50)", "INT", "INT", "VARCHAR (100)", "REAL", "REAL", "VARCHAR (20)", "REAL", "REAL", "REAL", "REAL", "REAL", "REAL", "VARCHAR (10)")
+
+    # print(list_of_column_names)
+
+    database = "main"
+    table_npk = "МПК"
+    main = Database(database=database)
+    main.connect()
+
+    # # main.create_table(table_npk, list_of_column_names, types)
+
+    df = df.to_dict(orient = 'records')
+    keys = []
+    for key in df[0].keys():
+        if (key == "Xmin"):
+            keys.append("X_min")
+        elif (key == "Xmax"):
+            keys.append("X_max")
+        else:
+            keys.append(key)
+    keys = tuple(keys)
+
+    for record in df:
+        values = record.values()
+        values = tuple(values)
+        main.insert(table_npk, keys, values)
+    
+    main.disconnect()
