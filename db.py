@@ -13,6 +13,19 @@ port = 5432
 pg_db = PostgresqlExtDatabase(database_name, user=user, password=password, host=host, port=port)
 
 class BaseModel(Model):
+    # возвращает столбец
+    @classmethod
+    def select_column(cls, column, where=False, condition=False):
+        selected = cls.select().dicts().execute()
+        res = list()
+        for record in selected:
+            if (where):
+                if (record[where] == condition):
+                    res.append(record[column])
+            else:
+                res.append(record[column])
+        return res
+
     class Meta:
         database = pg_db
 
@@ -111,21 +124,9 @@ class MPK(BaseModel):
             previous_value = record.Type
             record.Type = value
             record.save()
+        else:
+            print('table MPK has no column named {}'.format(column))
         return previous_value
-
-    # возвращает столбец
-    @classmethod
-    def select_column(cls, column, where=False, condition=False):
-        record = cls.select()
-        selected = record.dicts().execute()
-        res = list()
-        for record in selected:
-            if (where):
-                if (record[where] == condition):
-                    res.append(record[column])
-            else:
-                res.append(record[column])
-        return res
 
 class RS485(BaseModel):
     id = AutoField(primary_key = True)
@@ -191,75 +192,64 @@ class DatabaseManipulation(object):
         self.current_table = current_table
         self.archive = archive
     
-    def create_tables(self, *args):
+    def create_tables(self, list_of_tables):
         with self.db:
-            self.db.create_tables(args)
+            self.db.create_tables(list_of_tables)
+        print('Tables created successfully')
     
-    def drop_tables(self, *args):
+    def drop_tables(self, list_of_tables):
         with self.db:
-            self.db.drop_tables(args)
+            self.db.drop_tables(list_of_tables)
+        print('Tables dropped successfully')
 
     def insert_many(self, data):
         with self.db.atomic():
             self.current_table.insert_many(data).execute()
         print("{} filled successfully".format(self.current_table))
 
-    def insert_one(self, id, column, value):
-        # работает пока только с MPK
+    def insert_one(self, id, column, value): # работает пока только с MPK
         previous = self.current_table.insert_one(id=id, column=column, value=value)
 
         archive_dict = dict()
         archive_dict['id_kks'] = id
-        # у этого столбца тип данны real так что если вставлять строку то будет ошибка
-        archive_dict['value'] = previous
+        archive_dict['value'] = previous # у этого столбца тип данны real так что если вставлять строку то будет ошибка
         archive_dict['session_date'] = datetime.datetime.now()
 
         self.archive.insert_many(archive_dict).execute()
         print("{} filled successfully".format(self.archive))
 
-    def select(self, condition):
-        query = self.current_table.select().where(self.current_table.id == condition)
-        selected = query.dicts().execute()
+    def select_column(self, column, where=False, condition=False): 
+        selected = self.current_table.select().dicts().execute()
         res = list()
         for record in selected:
-            res.append(record)
+            if (where):
+                if (record[where] == condition):
+                    res.append(record[column])
+            else:
+                res.append(record[column])
         return res
 
-def create_tables():
-    with pg_db:
-        pg_db.create_tables([MPK, Archive])
+    def start(self): # создание таблиц и их инициализация, файлы Сигналы.xlsx и arhive.csv должны лежать в той же папке что и скрипт
+        self.create_tables([self.current_table, self.archive])
 
-def drop_tables():
-    with pg_db:
-        pg_db.drop_tables([MPK, Archive])
+        df = pd.read_excel('Сигналы.xlsx', sheet_name='МПК') # извлекаем информацию из xlsx
+        data = df.to_dict(orient = 'records')
+        with pg_db.atomic():
+            self.current_table.insert_many(data).execute() # заполняем таблцу
+        print("{} filled successfully".format(self.current_table))
 
-# функция для инициализации таблицы
-def init():
-    create_tables()
-
-    # заполняем таблцу МПК
-    df = pd.read_excel('Сигналы.xlsx', sheet_name='МПК')
-    data = df.to_dict(orient = 'records')
-    with pg_db.atomic():
-        MPK.insert_many(data).execute()
-    print("MPK filled successfully")
-
-    # заполняем таблицу Archive
-    df = pd.read_csv('arhive.csv')
-    data = df.to_dict(orient = 'records')
+        df = pd.read_csv('arhive.csv') # извлекаем иформацию из arhive.csv
+        data = df.to_dict(orient = 'records')
     
-    # кто-то придумал хранить дату как строки, поэтому сделаем эти строки обратно датой
-    for index in range(len(data)):
-        data[index]['session_date'] = pd.to_datetime(data[index]['session_date'])
-    with pg_db.atomic():
-        Archive.insert_many(data).execute()
-    print("Archive filled successfully")
+        # кто-то придумал хранить дату как строки, поэтому сделаем эти строки обратно датой
+        for index in range(len(data)):
+            data[index]['session_date'] = pd.to_datetime(data[index]['session_date'])
+        with pg_db.atomic():
+            self.archive.insert_many(data).execute() # заполняем таблицу Archive
+        print("{} filled successfully".format(self.archive))        
 
 if __name__ == '__main__':
+    # my_tables = DatabaseManipulation(pg_db, MPK, Archive)
+    # print(Archive.select_column('value', 'id_kks', 20))
+    pass
 
-    my_tables = DatabaseManipulation(pg_db, MPK, Archive)
-    my_tables.insert_one(12, 'HW', 130)
-    # print(*my_table.select('Резерв'))
-    # a = MPK.insert_one("id_kks", 230, 23)
-    
-    # print(MPK.select_column('NAME', 'LW', 20))
