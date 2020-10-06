@@ -41,6 +41,91 @@ class MPK(BaseModel):
 
     class Meta:
         table_name = "МПК"
+    
+    # меняет значение поля, возвращает значение которое было в поле до изменения
+    @classmethod
+    def insert_one(cls, id, column, value):
+        record = cls.select().where(cls.id_kks == id).get()
+        previous_value = None
+        if (column == 'KKS'):
+            previous_value = record.KKS
+            record.KKS = value           
+            record.save()
+        elif (column == 'Суффикс'):
+            previous_value = record.Суффикс
+            record.Суффикс = value
+            record.save()
+        elif (column == 'Модуль'):
+            previous_value = record.Модуль
+            record.Модуль = value
+            record.save()
+        elif (column == 'Слот'):
+            previous_value = record.Слот
+            record.Слот = value
+            record.save()
+        elif (column == 'Канал'):
+            previous_value = record.Канал
+            record.Канал = value
+            record.save()
+        elif (column == 'NAME'):
+            previous_value = record.NAME
+            record.NAME = value
+            record.save()
+        elif (column == 'Xmin_'):
+            previous_value = record.Xmin_
+            record.Xmin_ = value
+            record.save()
+        elif (column == 'Xmax_'):
+            previous_value = record.Xmax_
+            record.Xmax_ = value
+            record.save()
+        elif (column == 'unit'):
+            previous_value = record.unit
+            record.unit = value
+            record.save()
+        elif (column == 'LA'):
+            previous_value = record.LA
+            record.LA = value
+            record.save()
+        elif (column == 'LW'):
+            previous_value = record.LW
+            record.LW = value
+            record.save()
+        elif (column == 'HW'):
+            previous_value = record.HW
+            record.HW = value
+            record.save()
+        elif (column == 'HA'):
+            previous_value = record.HA
+            record.HA = value
+            record.save()
+        elif (column == 'Точность_лог'):
+            previous_value = record.Точность_лог
+            record.Точность_лог = value
+            record.save()
+        elif (column == 'Точность_вк'):
+            previous_value = record.Точность_вк
+            record.Точность_вк = value
+            record.save()
+        elif (column == 'Type'):
+            previous_value = record.Type
+            record.Type = value
+            record.save()
+        return previous_value
+
+    # возвращает столбец
+    @classmethod
+    def select_column(cls, column, where=False, condition=False):
+        record = cls.select()
+        selected = record.dicts().execute()
+        res = list()
+        for record in selected:
+            if (where):
+                if (record[where] == condition):
+                    res.append(record[column])
+            else:
+                res.append(record[column])
+        return res
 
 class RS485(BaseModel):
     id = AutoField(primary_key = True)
@@ -100,6 +185,46 @@ class Archive(BaseModel):
     class Meta:
         table_name = "Archive"
 
+class DatabaseManipulation(object):
+    def __init__(self, db, current_table, archive):
+        self.db = db
+        self.current_table = current_table
+        self.archive = archive
+    
+    def create_tables(self, *args):
+        with self.db:
+            self.db.create_tables(args)
+    
+    def drop_tables(self, *args):
+        with self.db:
+            self.db.drop_tables(args)
+
+    def insert_many(self, data):
+        with self.db.atomic():
+            self.current_table.insert_many(data).execute()
+        print("{} filled successfully".format(self.current_table))
+
+    def insert_one(self, id, column, value):
+        # работает пока только с MPK
+        previous = self.current_table.insert_one(id=id, column=column, value=value)
+
+        archive_dict = dict()
+        archive_dict['id_kks'] = id
+        # у этого столбца тип данны real так что если вставлять строку то будет ошибка
+        archive_dict['value'] = previous
+        archive_dict['session_date'] = datetime.datetime.now()
+
+        self.archive.insert_many(archive_dict).execute()
+        print("{} filled successfully".format(self.archive))
+
+    def select(self, condition):
+        query = self.current_table.select().where(self.current_table.id == condition)
+        selected = query.dicts().execute()
+        res = list()
+        for record in selected:
+            res.append(record)
+        return res
+
 def create_tables():
     with pg_db:
         pg_db.create_tables([MPK, Archive])
@@ -115,7 +240,6 @@ def init():
     # заполняем таблцу МПК
     df = pd.read_excel('Сигналы.xlsx', sheet_name='МПК')
     data = df.to_dict(orient = 'records')
-
     with pg_db.atomic():
         MPK.insert_many(data).execute()
     print("MPK filled successfully")
@@ -127,10 +251,15 @@ def init():
     # кто-то придумал хранить дату как строки, поэтому сделаем эти строки обратно датой
     for index in range(len(data)):
         data[index]['session_date'] = pd.to_datetime(data[index]['session_date'])
-
     with pg_db.atomic():
         Archive.insert_many(data).execute()
     print("Archive filled successfully")
 
 if __name__ == '__main__':
-    # init()
+
+    my_tables = DatabaseManipulation(pg_db, MPK, Archive)
+    my_tables.insert_one(12, 'HW', 130)
+    # print(*my_table.select('Резерв'))
+    # a = MPK.insert_one("id_kks", 230, 23)
+    
+    # print(MPK.select_column('NAME', 'LW', 20))
