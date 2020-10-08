@@ -3,6 +3,8 @@ from collections import deque
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 
+from db import *
+
 class Dplot(object):
     def __init__(self, npoints: int, x_label: str, y_label: str, title: str, data: list):
         self.npoints = npoints
@@ -18,9 +20,12 @@ class Dplot(object):
         self.ax.set_xlabel(x_label)
         self.ax.set_ylabel(y_label)
         self.ax.set_title(title)
-        [self.line] = self.ax.step(self.x, self.y)
+        [self.line] = self.ax.step(self.x, self.y, 'k', label = 'Value of sumething')
 
-    def _update(self, dy):
+        self.legend = self.ax.legend(loc='lower right', fontsize='medium')
+        self.legend.get_frame().set_facecolor('C0')
+
+    def update(self, dy):
         self.x.append(self.x[-1] + 1)  # update data
         self.y.append(dy)
 
@@ -33,12 +38,13 @@ class Dplot(object):
 
     def data_gen(self):
         while True:
-            yield float(random.randint(-10,10)) # вместо рандома вставить функцию, возвпащающую новые значения
+            yield float(random.randint(-10,10)) # вместо рандома вставить функцию, возвращающую новые значения
 
     def draw(self):
-        ani = animation.FuncAnimation(self.fig, self._update, self.data_gen)
+        ani = animation.FuncAnimation(self.fig, self.update, self.data_gen)
         plt.show()
 
 if __name__ == '__main__':
-    my_plot = Dplot(100, 'x', 'y', 'title', [random.random() for x in range(40)])
+    a = Archive.select_column('value', False, False, 10)
+    my_plot = Dplot(200, 'time', 'y', 'Plot', a)
     my_plot.draw()

@@ -15,8 +15,11 @@ pg_db = PostgresqlExtDatabase(database_name, user=user, password=password, host=
 class BaseModel(Model):
     # возвращает столбец
     @classmethod
-    def select_column(cls, column, where=False, condition=False):
-        selected = cls.select().dicts().execute()
+    def select_column(cls, column: str, where: str, condition: str, limit: int): # для where condition limit принимается значение False
+        if (limit):
+            selected = cls.select().limit(limit).dicts().execute()
+        else:
+            selected = cls.select().dicts().execute()
         res = list()
         for record in selected:
             if (where):
