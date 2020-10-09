@@ -4,6 +4,8 @@ from PyQt5.QtWidgets import (QWidget, QToolTip, QPushButton, QApplication, QMess
 from PyQt5.QtGui import QFont, QIcon, QStandardItemModel, QStandardItem
 from PyQt5.QtCore import QCoreApplication, QDir
 
+import db
+
 class Application(QWidget):
     def __init__(self):
         super().__init__()
@@ -14,12 +16,12 @@ class Application(QWidget):
         self.height = 600
         self.initUI()
 
-    # def closeEvent(self, event):
-    #     reply = QMessageBox.question(self, 'Message', "Are you sure to quit?", QMessageBox.Yes |QMessageBox.No, QMessageBox.No)
-    #     if reply == QMessageBox.Yes:
-    #         event.accept()
-    #     else:
-    #         event.ignore()
+    def closeEvent(self, event):
+        reply = QMessageBox.question(self, 'Сообщение', "Выточно хотите выйти?", QMessageBox.Yes |QMessageBox.No, QMessageBox.No)
+        if reply == QMessageBox.Yes:
+            event.accept()
+        else:
+            event.ignore()
 
     def getValueFromTree(self, value):
         print(value.data())
@@ -40,38 +42,45 @@ class Application(QWidget):
         vboxList = QVBoxLayout()
         self.labelSignalSelection = QLabel('Выбор сигнала')
         self.labelSystems = QLabel('Системы')
-        #
-        # self.listSystems = QListWidget()
-        # self.listSystems.insertItem(0, "Java")
-        # self.listSystems.insertItem(1, "Python")
-        #
+
+        '-------------------------ListView---------------------------'
         self.treeSystems = QTreeView()
         self.treeSystems.setHeaderHidden(True)
 
         self.treeModel = QStandardItemModel()
         self.rootNode = self.treeModel.invisibleRootItem()
 
-        python = QStandardItem('Python')
-        python2 = QStandardItem('Pyhton 3.0')
-        python.appendRow(python2)
-        java = QStandardItem('Java')
-        java2 = QStandardItem('Java 13.13')
-        java.appendRow(java2)
-        python.setEditable(False)
-        python2.setEditable(False)
-        java.setEditable(False)
-        java2.setEditable(False)
+        # проеверь чтобы postgres был запущен
+        kks = db.MPK.select_column('KKS', False, False, False)
+        kks = set(kks)
+        for record in kks:
+            row = QStandardItem(record)
+            row.setEditable(False)
+            suffics = set(db.MPK.select_column('Суффикс', 'KKS', record, False))
+            for elem in suffics:
+                currentElem = QStandardItem(elem)
+                currentElem.setEditable(False)
+                row.appendRow(currentElem)
+            self.rootNode.appendRow(row)
 
-        self.rootNode.appendRow(python)
-        self.rootNode.appendRow(java)
+        # python = QStandardItem('Python')
+        # python2 = QStandardItem('Pyhton 3.0')
+        # python.appendRow(python2)
+        # java = QStandardItem('Java')
+        # java2 = QStandardItem('Java 13.13')
+        # java.appendRow(java2)
+        # python.setEditable(False)
+        # python2.setEditable(False)
+        # java.setEditable(False)
+        # java2.setEditable(False)
+        # self.rootNode.appendRow(python)
+        # self.rootNode.appendRow(java)
 
         self.treeSystems.setModel(self.treeModel)
-        self.treeSystems.expandAll() # разворачивает все разворачиваемые елементы
-        self.treeSystems.doubleClicked.connect(self.getValueFromTree)
-        # self.first_item = QTreeWidgetItem(self.treeSystems, ['Python'])
-        # self.second_item = QTreeWidgetItem(self.first_item, ['Python 3.0'])
-        
-        
+        # self.treeSystems.expandAll() # разворачивает все разворачиваемые елементы
+        self.treeSystems.doubleClicked.connect(self.getValueFromTree)        
+        '----------------------------ListView--------------------------'
+
         self.labelSelected = QLabel('Выбрано: 0 групп, 0 сигналов')
         self.labelSearch = QLabel('Поиск')
         self.labelDesignProtocolSignals = QLabel('Сигналы проектных протоколов')
@@ -132,7 +141,6 @@ class Application(QWidget):
         self.show()
 
 if __name__ == '__main__':
-
     app = QApplication(sys.argv)
     ex = Application()
     sys.exit(app.exec_())
