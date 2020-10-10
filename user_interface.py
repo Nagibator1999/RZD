@@ -1,8 +1,9 @@
 import sys
+import os
 from PyQt5.QtWidgets import (QWidget, QToolTip, QPushButton, QApplication, QMessageBox, QListWidget, QVBoxLayout, 
-                            QHBoxLayout, QGridLayout, QLineEdit, QLabel, QTreeView, QTreeWidgetItem)
+                            QHBoxLayout, QGridLayout, QLineEdit, QLabel, QTreeView, QTreeWidgetItem, QTreeWidget, QTreeWidgetItem)
 from PyQt5.QtGui import QFont, QIcon, QStandardItemModel, QStandardItem
-from PyQt5.QtCore import QCoreApplication, QDir
+from PyQt5.QtCore import QCoreApplication, QDir, Qt
 
 import db
 
@@ -29,11 +30,9 @@ class Application(QWidget):
         print(value.column())
 
     def initUI(self):
-        # styles
-        stylesheet = '''.QPushButton {background-color: #ccc;}
-                        .QLabel {font-size: 14px;}'''
+        # selectedTreeElemStyleSheet = '''.QStandardItem {background-color: blue}'''
         centralButtonsSS = 'max-width: 20%; padding: 6px; margin: 10px; border-radius: 5px; border: 1px solid black'
-        self.setStyleSheet(stylesheet)
+        self.setStyleSheet(open(os.path.join(os.path.dirname(__file__), 'style.css')).read())
 
         self.setWindowIcon(QIcon("icon.png"))
         self.setWindowTitle(self.title)
@@ -43,43 +42,25 @@ class Application(QWidget):
         self.labelSignalSelection = QLabel('Выбор сигнала')
         self.labelSystems = QLabel('Системы')
 
-        '-------------------------ListView---------------------------'
-        self.treeSystems = QTreeView()
-        self.treeSystems.setHeaderHidden(True)
+        '-------------------------ListWidget---------------------------'
+        self.treeSystems = QTreeWidget()
+        self.treeSystems.setAlternatingRowColors(1)
+        self.treeSystems.setHeaderHidden(1)
+        self.treeSystems.setColumnCount(1)
 
-        self.treeModel = QStandardItemModel()
-        self.rootNode = self.treeModel.invisibleRootItem()
-
-        # проеверь чтобы postgres был запущен
+        #проеверь чтобы postgres был запущен
         kks = db.MPK.select_column('KKS', False, False, False)
         kks = set(kks)
         for record in kks:
-            row = QStandardItem(record)
-            row.setEditable(False)
+            row = QTreeWidgetItem(self.treeSystems, [record])
+            row.setCheckState(0, Qt.CheckState())
+            self.treeSystems.addTopLevelItem(row)
             suffics = set(db.MPK.select_column('Суффикс', 'KKS', record, False))
             for elem in suffics:
-                currentElem = QStandardItem(elem)
-                currentElem.setEditable(False)
-                row.appendRow(currentElem)
-            self.rootNode.appendRow(row)
-
-        # python = QStandardItem('Python')
-        # python2 = QStandardItem('Pyhton 3.0')
-        # python.appendRow(python2)
-        # java = QStandardItem('Java')
-        # java2 = QStandardItem('Java 13.13')
-        # java.appendRow(java2)
-        # python.setEditable(False)
-        # python2.setEditable(False)
-        # java.setEditable(False)
-        # java2.setEditable(False)
-        # self.rootNode.appendRow(python)
-        # self.rootNode.appendRow(java)
-
-        self.treeSystems.setModel(self.treeModel)
-        # self.treeSystems.expandAll() # разворачивает все разворачиваемые елементы
-        self.treeSystems.doubleClicked.connect(self.getValueFromTree)        
-        '----------------------------ListView--------------------------'
+                child = QTreeWidgetItem(row, [elem])
+                child.setCheckState(0, Qt.CheckState())
+                row.addChild(child)    
+        '----------------------------ListWidget--------------------------'
 
         self.labelSelected = QLabel('Выбрано: 0 групп, 0 сигналов')
         self.labelSearch = QLabel('Поиск')
