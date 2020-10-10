@@ -1,9 +1,10 @@
 import sys
 import os
 from PyQt5.QtWidgets import (QWidget, QToolTip, QPushButton, QApplication, QMessageBox, QListWidget, QVBoxLayout, 
-                            QHBoxLayout, QGridLayout, QLineEdit, QLabel, QTreeView, QTreeWidgetItem, QTreeWidget, QTreeWidgetItem)
-from PyQt5.QtGui import QFont, QIcon, QStandardItemModel, QStandardItem
-from PyQt5.QtCore import QCoreApplication, QDir, Qt
+                            QHBoxLayout, QGridLayout, QLineEdit, QLabel, QTreeView, QTreeWidgetItem, QTreeWidget, 
+                            QAbstractItemView)
+from PyQt5.QtGui import QFont, QIcon, QStandardItemModel, QStandardItem, QColor
+from PyQt5.QtCore import QCoreApplication, QDir, Qt, QDataStream
 
 import db
 
@@ -15,19 +16,30 @@ class Application(QWidget):
         self.left = 500
         self.width = 800
         self.height = 600
+        self.listOfChilds = list()
         self.initUI()
 
     def closeEvent(self, event):
-        reply = QMessageBox.question(self, 'Сообщение', "Выточно хотите выйти?", QMessageBox.Yes |QMessageBox.No, QMessageBox.No)
+        reply = QMessageBox.question(self, 'Сообщение', "Вы точно хотите выйти?", QMessageBox.Yes | QMessageBox.No, QMessageBox.No)
         if reply == QMessageBox.Yes:
             event.accept()
         else:
             event.ignore()
 
-    def getValueFromTree(self, value):
-        print(value.data())
-        print(value.row())
-        print(value.column())
+    def onSelectionChanged(self, value):
+        for sel in self.treeSystems.selectedIndexes():
+            # val = '/'+sel.data()
+            # print(sel.child(0,0))
+            # while sel.parent().isValid():
+            #     sel = sel.parent()
+            #     val = '/' + sel.data() + val
+            # print(sel)
+            index = 0
+            while sel.child(index,0).isValid():
+                selChild = sel.child(index,0)
+                self.listOfChilds.append(selChild.data())
+                index += 1
+            print(self.listOfChilds)
 
     def initUI(self):
         # selectedTreeElemStyleSheet = '''.QStandardItem {background-color: blue}'''
@@ -47,19 +59,19 @@ class Application(QWidget):
         self.treeSystems.setAlternatingRowColors(1)
         self.treeSystems.setHeaderHidden(1)
         self.treeSystems.setColumnCount(1)
+        self.treeSystems.setSelectionMode(QAbstractItemView.MultiSelection)
+        self.treeSystems.selectionModel().selectionChanged.connect(self.onSelectionChanged)
 
         #проеверь чтобы postgres был запущен
         kks = db.MPK.select_column('KKS', False, False, False)
         kks = set(kks)
         for record in kks:
             row = QTreeWidgetItem(self.treeSystems, [record])
-            row.setCheckState(0, Qt.CheckState())
             self.treeSystems.addTopLevelItem(row)
             suffics = set(db.MPK.select_column('Суффикс', 'KKS', record, False))
             for elem in suffics:
                 child = QTreeWidgetItem(row, [elem])
-                child.setCheckState(0, Qt.CheckState())
-                row.addChild(child)    
+                row.addChild(child)   
         '----------------------------ListWidget--------------------------'
 
         self.labelSelected = QLabel('Выбрано: 0 групп, 0 сигналов')
