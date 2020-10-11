@@ -26,7 +26,9 @@ class Application(QWidget):
         else:
             event.ignore()
 
-    def onSelectionChanged(self, value):
+    # есть проблема с добавлением лишний раз одного и того же. разберись
+    def moveSelectedSignals(self):
+        add = False
         for sel in self.treeSystems.selectedIndexes():
             # val = '/'+sel.data()
             # print(sel.child(0,0))
@@ -34,12 +36,55 @@ class Application(QWidget):
             #     sel = sel.parent()
             #     val = '/' + sel.data() + val
             # print(sel)
-            index = 0
-            while sel.child(index,0).isValid():
-                selChild = sel.child(index,0)
-                self.listOfChilds.append(selChild.data())
-                index += 1
-            print(self.listOfChilds)
+            if (not sel.child(0,0).isValid()): # если нет дочерних элементов
+                if (sel.data() not in self.listOfChilds): # если элемент уже добавлен
+                    self.listOfChilds.append(sel.data())
+                    add = True
+            else:
+                index = 0
+                while sel.child(index,0).isValid(): # проходимся по всем дочерним
+                    selChild = sel.child(index,0)
+                    if (selChild.data() not in self.listOfChilds): # если элемент уже добавлен
+                        self.listOfChilds.append(selChild.data())
+                        add = True
+                    index += 1
+        if add:
+            self.listSelectedSignals.addItems(self.listOfChilds)
+
+    def moveAllSelectedSignals(self):
+        add = False
+        for index in range(self.treeSystems.topLevelItemCount()):
+            item = self.treeSystems.topLevelItem(index)
+            for childIndex in range(item.childCount()):
+                child = item.child(childIndex)
+                if (child.data(0,0) not in self.listOfChilds):
+                    self.listOfChilds.append(child.data(0,0)) # 0,0 потому что элемент у нас туту всего один и дочерних не имеет
+                    add = True
+        if add:
+            self.listSelectedSignals.addItems(self.listOfChilds)
+
+    def deleteSelectedSignals(self):
+        for item in self.listSelectedSignals.selectedItems():
+            deletedItem = self.listSelectedSignals.takeItem(self.listSelectedSignals.row(item))
+            self.listOfChilds.remove(deletedItem.data(0))
+
+    def deleteAllSelectedSignals(self):
+        self.listSelectedSignals.clear()
+        self.listOfChilds = []
+
+    def countGroupsAndSignals(self):
+        group = 0
+        childs = 0
+        for sel in self.treeSystems.selectedIndexes():
+            if (not sel.child(0,0).isValid()):
+                childs += 1
+            else:
+                group += 1
+                index = 0
+                while sel.child(index,0).isValid(): # проходимся по всем дочерним
+                    childs += 1
+                    index += 1
+        self.labelSelected.setText('Выбрано: {0} групп, {1} сигналов'.format(group, childs))
 
     def initUI(self):
         # selectedTreeElemStyleSheet = '''.QStandardItem {background-color: blue}'''
@@ -60,15 +105,15 @@ class Application(QWidget):
         self.treeSystems.setHeaderHidden(1)
         self.treeSystems.setColumnCount(1)
         self.treeSystems.setSelectionMode(QAbstractItemView.MultiSelection)
-        self.treeSystems.selectionModel().selectionChanged.connect(self.onSelectionChanged)
+        self.treeSystems.selectionModel().selectionChanged.connect(self.countGroupsAndSignals) # это для подсчёта выбранных групп и сигналов
 
         #проеверь чтобы postgres был запущен
-        kks = db.MPK.select_column('KKS', False, False, False)
+        kks = db.MPK.select_column('Суффикс', False, False, False)
         kks = set(kks)
         for record in kks:
             row = QTreeWidgetItem(self.treeSystems, [record])
             self.treeSystems.addTopLevelItem(row)
-            suffics = set(db.MPK.select_column('Суффикс', 'KKS', record, False))
+            suffics = set(db.MPK.select_column('KKS', 'Суффикс', record, False))
             for elem in suffics:
                 child = QTreeWidgetItem(row, [elem])
                 row.addChild(child)   
@@ -85,12 +130,19 @@ class Application(QWidget):
         vbox4Btn = QVBoxLayout()
         self.btnRigth = QPushButton('>', self)
         self.btnRigth.setStyleSheet(centralButtonsSS)
+        self.btnRigth.clicked.connect(self.moveSelectedSignals)
+        
         self.btnLeft = QPushButton('<', self)
         self.btnLeft.setStyleSheet(centralButtonsSS)
+        self.btnLeft.clicked.connect(self.deleteSelectedSignals)
+
         self.btnRigthAll = QPushButton('>>', self)
         self.btnRigthAll.setStyleSheet(centralButtonsSS)
+        self.btnRigthAll.clicked.connect(self.moveAllSelectedSignals)
+        
         self.btnLeftAll = QPushButton('<<', self)
         self.btnLeftAll.setStyleSheet(centralButtonsSS)
+        self.btnLeftAll.clicked.connect(self.deleteAllSelectedSignals)
 
         widgets = (self.btnRigth, self.btnLeft, self.btnRigthAll, self.btnLeftAll)
         for widget in widgets:
@@ -98,7 +150,10 @@ class Application(QWidget):
 
         vboxSelectedList = QVBoxLayout()
         self.labelSelectedSignals = QLabel('Выбранные сигналы')
+
         self.listSelectedSignals = QListWidget()
+        self.listSelectedSignals.setSelectionMode(QAbstractItemView.MultiSelection)
+
         self.labelHowMuchSelected = QLabel('Выбрано 3 из 3')
         widgets = (self.labelSelectedSignals, self.listSelectedSignals, self.labelHowMuchSelected)
         for widget in widgets:
