@@ -26,42 +26,34 @@ class Application(QWidget):
         else:
             event.ignore()
 
-    # есть проблема с добавлением лишний раз одного и того же. разберись
-    def moveSelectedSignals(self):
-        add = False
+    def moveSelectedSignals(self): # добавь еще чтобы выделение снималось
         for sel in self.treeSystems.selectedIndexes():
-            # val = '/'+sel.data()
-            # print(sel.child(0,0))
-            # while sel.parent().isValid():
-            #     sel = sel.parent()
-            #     val = '/' + sel.data() + val
-            # print(sel)
+            item = self.treeSystems.itemFromIndex(sel) # убираем выделение
+            item.setSelected(False)
+
             if (not sel.child(0,0).isValid()): # если нет дочерних элементов
                 if (sel.data() not in self.listOfChilds): # если элемент уже добавлен
                     self.listOfChilds.append(sel.data())
-                    add = True
+                    self.listSelectedSignals.addItem(sel.data())
             else:
                 index = 0
                 while sel.child(index,0).isValid(): # проходимся по всем дочерним
-                    selChild = sel.child(index,0)
-                    if (selChild.data() not in self.listOfChilds): # если элемент уже добавлен
-                        self.listOfChilds.append(selChild.data())
-                        add = True
+                    item = self.treeSystems.itemFromIndex(sel.child(index,0)) # убираем выделение
+                    item.setSelected(False)
+                    selChild = sel.child(index,0).data()
+                    if (selChild not in self.listOfChilds): # если элемент уже добавлен
+                        self.listOfChilds.append(selChild)
+                        self.listSelectedSignals.addItem(selChild)
                     index += 1
-        if add:
-            self.listSelectedSignals.addItems(self.listOfChilds)
 
     def moveAllSelectedSignals(self):
-        add = False
         for index in range(self.treeSystems.topLevelItemCount()):
             item = self.treeSystems.topLevelItem(index)
             for childIndex in range(item.childCount()):
-                child = item.child(childIndex)
-                if (child.data(0,0) not in self.listOfChilds):
-                    self.listOfChilds.append(child.data(0,0)) # 0,0 потому что элемент у нас туту всего один и дочерних не имеет
-                    add = True
-        if add:
-            self.listSelectedSignals.addItems(self.listOfChilds)
+                childData = item.child(childIndex).data(0,0) # 0,0 потому что элемент у нас туту всего один и дочерних не имеет
+                if (childData not in self.listOfChilds):
+                    self.listOfChilds.append(childData) 
+                    self.listSelectedSignals.addItem(childData)
 
     def deleteSelectedSignals(self):
         for item in self.listSelectedSignals.selectedItems():
@@ -72,7 +64,15 @@ class Application(QWidget):
         self.listSelectedSignals.clear()
         self.listOfChilds = []
 
-    def countGroupsAndSignals(self):
+    # проблемы с отменой выделения родителя
+    def countGroupsAndSignals(self, value):
+        for sel in self.treeSystems.selectedIndexes(): # выбираем все невыбранные дочерние элементы выбранного родительского
+            index = 0
+            while sel.child(index,0).isValid():
+                item = self.treeSystems.itemFromIndex(sel.child(index, 0))
+                item.setSelected(True)
+                index += 1
+
         group = 0
         childs = 0
         for sel in self.treeSystems.selectedIndexes():

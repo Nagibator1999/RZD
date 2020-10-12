@@ -221,6 +221,10 @@ class DatabaseManipulation(object):
         self.archive.insert_many(archive_dict).execute()
         print("{} filled successfully".format(self.archive))
 
+    def delete_row(self, row):
+        to_del = self.current_table.get(self.current_table.id_kks == row)
+        to_del.delete_instance()
+
     def select_column(self, column, where=False, condition=False): 
         selected = self.current_table.select().dicts().execute()
         res = list()
@@ -252,7 +256,9 @@ class DatabaseManipulation(object):
         print("{} filled successfully".format(self.archive))        
 
 if __name__ == '__main__':
-    # my_tables = DatabaseManipulation(pg_db, MPK, Archive)
+    my_tables = DatabaseManipulation(pg_db, MPK, Archive)
     # print(Archive.select_column('value', 'id_kks', 20))
-    pass
+    to_insert = {'id_kks': 128, 'KKS': 'DFJFDJKDF', 'Суффикс': '123'}
+    my_tables.insert_many([to_insert])
+    # my_tables.delete_row(128)
 
