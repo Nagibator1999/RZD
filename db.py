@@ -261,4 +261,3 @@ if __name__ == '__main__':
     to_insert = {'id_kks': 128, 'KKS': 'DFJFDJKDF', 'Суффикс': '123'}
     my_tables.insert_many([to_insert])
     # my_tables.delete_row(128)
-

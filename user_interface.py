@@ -64,14 +64,31 @@ class Application(QWidget):
         self.listSelectedSignals.clear()
         self.listOfChilds = []
 
+    def fixSelection(self, modelSelectionOfSelectedItem):
+        if len(modelSelectionOfSelectedItem.indexes()) > 0:
+            modelIndexOfSelectedItem = modelSelectionOfSelectedItem.indexes()[0]
+            item = self.treeSystems.itemFromIndex(modelIndexOfSelectedItem)
+            if (item.isSelected()):
+                if (modelIndexOfSelectedItem.child(0,0).isValid()):
+                    childs = item.childCount()
+                    for index in range(childs):
+                        childItem = self.treeSystems.itemFromIndex(modelIndexOfSelectedItem.child(index, 0))
+                        childItem.setSelected(True) 
+        else:
+            for sel in self.treeSystems.selectedIndexes():
+                item = self.treeSystems.itemFromIndex(sel)
+                flag = False
+                if (item.isSelected() and item.childCount() > 0):
+                    for index in range(item.childCount()):
+                        childItem = self.treeSystems.itemFromIndex(sel.child(index, 0))
+                        if not childItem.isSelected():
+                            flag = True
+                if flag:
+                    item.setSelected(False)
+
     # проблемы с отменой выделения родителя
     def countGroupsAndSignals(self, value):
-        for sel in self.treeSystems.selectedIndexes(): # выбираем все невыбранные дочерние элементы выбранного родительского
-            index = 0
-            while sel.child(index,0).isValid():
-                item = self.treeSystems.itemFromIndex(sel.child(index, 0))
-                item.setSelected(True)
-                index += 1
+        self.fixSelection(value)
 
         group = 0
         childs = 0

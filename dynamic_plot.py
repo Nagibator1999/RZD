@@ -45,6 +45,6 @@ class Dplot(object):
         plt.show()
 
 if __name__ == '__main__':
-    a = Archive.select_column('value', False, False, 10)
-    my_plot = Dplot(200, 'time', 'y', 'Plot', a)
+    a = [float(random.randint(-10,10)) for x in range(10)] # Archive.select_column('value', False, False, 10)
+    my_plot = Dplot(20, 'time', 'y', 'Plot', a)
     my_plot.draw()
