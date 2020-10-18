@@ -257,7 +257,8 @@ class DatabaseManipulation(object):
 
 if __name__ == '__main__':
     my_tables = DatabaseManipulation(pg_db, MPK, Archive)
+    my_tables.insert_one(7,'Xmax_', 2000)
     # print(Archive.select_column('value', 'id_kks', 20))
-    to_insert = {'id_kks': 128, 'KKS': 'DFJFDJKDF', 'Суффикс': '123'}
-    my_tables.insert_many([to_insert])
+    # to_insert = {'id_kks': 128, 'KKS': 'DFJFDJKDF', 'Суффикс': '123'}
+    # my_tables.insert_many([to_insert])
     # my_tables.delete_row(128)
