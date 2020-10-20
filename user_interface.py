@@ -43,6 +43,7 @@ class Application(QWidget):
             self.discreteSignalsCheckBox.hide()
             self.ProjectProtocolsTree.hide()
             self.countingLabel.hide()
+            self.savedProtocolsTree.hide()
 
     def showSearchTree(self, event):
         if (self.searchResultTree.isHidden()):
@@ -57,6 +58,7 @@ class Application(QWidget):
             self.labelSelected.hide()
             self.ProjectProtocolsTree.hide()
             self.countingLabel.hide()
+            self.savedProtocolsTree.hide()
 
     def showProjectProtocolsTree(self, event):
         if (self.ProjectProtocolsTree.isHidden()):
@@ -71,8 +73,24 @@ class Application(QWidget):
             self.buttonSearch.hide()
             self.embeddedSignalsCheckBox.hide()
             self.discreteSignalsCheckBox.hide()
+            self.savedProtocolsTree.hide()
 
-    def searchSignals(self): # пофиксить добавление в массив
+    def showSavedProtocolsTree(self,event):
+        if (self.savedProtocolsTree.isHidden()):
+            self.savedProtocolsTree.show()
+
+            self.ProjectProtocolsTree.hide()
+            self.countingLabel.hide()
+            self.treeSystems.hide()
+            self.labelSelected.hide()
+            self.searchResultTree.hide()
+            self.searchLine.hide()
+            self.nuberOfSelectedLabel.hide()
+            self.buttonSearch.hide()
+            self.embeddedSignalsCheckBox.hide()
+            self.discreteSignalsCheckBox.hide()
+
+    def searchSignals(self):
         # ищем в slef.dictOfSignals
         string = self.searchLine.text()
         self.resultOfSearchList = []
@@ -269,9 +287,17 @@ class Application(QWidget):
         self.countingLabel.hide()
         '--------------------------ProjectProtocols----------------------------'
 
+        '---------------------------SavedProtocols------------------------'
+        self.savedProtocolsTree = QTreeWidget()
+        self.savedProtocolsTree.setHeaderHidden(1)
+        self.savedProtocolsTree.setColumnCount(1)
+        self.savedProtocolsTree.hide()
+        '---------------------------SavedProtocols------------------------'
+
         self.labelProjectProtocolSignals = QLabel('Сигналы проектных протоколов')
         self.labelProjectProtocolSignals.mousePressEvent = self.showProjectProtocolsTree
         self.labelStoredProtocols = QLabel('Сохраненные протоколы')
+        self.labelStoredProtocols.mousePressEvent = self.showSavedProtocolsTree
         widgets = (self.labelSignalSelection, 
                    self.labelSystems, 
                    self.treeSystems, 
@@ -282,7 +308,8 @@ class Application(QWidget):
                    self.labelProjectProtocolSignals,
                    self.ProjectProtocolsTree,
                    self.countingLabel, 
-                   self.labelStoredProtocols)
+                   self.labelStoredProtocols,
+                   self.savedProtocolsTree)
         for widget in widgets:
             vboxList.addWidget(widget)
             if widget == self.labelSearch:
@@ -306,7 +333,10 @@ class Application(QWidget):
         self.btnLeftAll.setStyleSheet(centralButtonsSS)
         self.btnLeftAll.clicked.connect(self.deleteAllSelectedSignals)
 
-        widgets = (self.btnRigth, self.btnLeft, self.btnRigthAll, self.btnLeftAll)
+        widgets = (self.btnRigth, 
+                   self.btnLeft, 
+                   self.btnRigthAll, 
+                   self.btnLeftAll)
         for widget in widgets:
             vbox4Btn.addWidget(widget)
 
@@ -317,7 +347,9 @@ class Application(QWidget):
         self.listSelectedSignals.setSelectionMode(QAbstractItemView.MultiSelection)
 
         self.labelHowMuchSelected = QLabel('Выбрано 0 из {}'.format(self.numberOfSignals))
-        widgets = (self.labelSelectedSignals, self.listSelectedSignals, self.labelHowMuchSelected)
+        widgets = (self.labelSelectedSignals, 
+                   self.listSelectedSignals, 
+                   self.labelHowMuchSelected)
         for widget in widgets:
             vboxSelectedList.addWidget(widget)
         
@@ -329,7 +361,8 @@ class Application(QWidget):
         hboxInputLine = QHBoxLayout()
         self.labelDescription = QLabel('Описание')
         self.inputLine = QLineEdit(self)
-        widgets = (self.labelDescription, self.inputLine)
+        widgets = (self.labelDescription, 
+                   self.inputLine)
         for widget in widgets:
             hboxInputLine.addWidget(widget)
 
@@ -337,7 +370,8 @@ class Application(QWidget):
         self.buttonOK = QPushButton('OK', self)
         self.buttonCancel = QPushButton('Отмена', self)
         hboxBottomButtons.addStretch(1)
-        widgets = (self.buttonOK, self.buttonCancel)
+        widgets = (self.buttonOK, 
+                   self.buttonCancel)
         for widget in widgets:
             hboxBottomButtons.addWidget(widget)
 
