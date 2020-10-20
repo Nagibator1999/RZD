@@ -2,7 +2,7 @@ import sys
 import os
 from PyQt5.QtWidgets import (QWidget, QToolTip, QPushButton, QApplication, QMessageBox, QListWidget, QVBoxLayout, 
                             QHBoxLayout, QGridLayout, QLineEdit, QLabel, QTreeView, QTreeWidgetItem, QTreeWidget, 
-                            QAbstractItemView, QCheckBox)
+                            QAbstractItemView, QCheckBox, QTabWidget)
 from PyQt5.QtGui import QFont, QIcon, QStandardItemModel, QStandardItem, QColor
 from PyQt5.QtCore import QCoreApplication, QDir, Qt, QDataStream
 
@@ -19,7 +19,7 @@ class Application(QWidget):
         self.listOfChilds = list()
         self.dictOfSignals = dict() # словарь с сигналами в которых мы потом производим поиск
         self.resultOfSearchList = list()
-        self.treeSystemsVisible = True 
+        self.numberOfSignals = 0 # считаем количество сигналов когда их выбираем после поиска
 
         self.initUI()
 
@@ -30,124 +30,147 @@ class Application(QWidget):
         else:
             event.ignore()
 
-    def hideTreeWidget(self, event):
-        if (self.treeSystemsVisible):
-            self.treeSystemsVisible = False
-            self.treeSystems.hide()
-            self.labelSelected.hide()
+    def showSystemsTree(self, event):
+        if (self.treeSystems.isHidden()):
+            self.treeSystems.show()
+            self.labelSelected.show()
 
-            self.searchResultList.show()
+            self.searchResultTree.hide()
+            self.searchLine.hide()
+            self.nuberOfSelectedLabel.hide()
+            self.buttonSearch.hide()
+            self.embeddedSignalsCheckBox.hide()
+            self.discreteSignalsCheckBox.hide()
+            self.ProjectProtocolsTree.hide()
+            self.countingLabel.hide()
+
+    def showSearchTree(self, event):
+        if (self.searchResultTree.isHidden()):
+            self.searchResultTree.show()
             self.searchLine.show()
             self.nuberOfSelectedLabel.show()
             self.buttonSearch.show()
             self.embeddedSignalsCheckBox.show()
             self.discreteSignalsCheckBox.show()
-        else:
-            self.treeSystemsVisible = True
-            self.treeSystems.show()
-            self.labelSelected.show()
 
-            self.searchResultList.hide()
+            self.treeSystems.hide()
+            self.labelSelected.hide()
+            self.ProjectProtocolsTree.hide()
+            self.countingLabel.hide()
+
+    def showProjectProtocolsTree(self, event):
+        if (self.ProjectProtocolsTree.isHidden()):
+            self.ProjectProtocolsTree.show()
+            self.countingLabel.show()
+
+            self.treeSystems.hide()
+            self.labelSelected.hide()
+            self.searchResultTree.hide()
             self.searchLine.hide()
             self.nuberOfSelectedLabel.hide()
             self.buttonSearch.hide()
             self.embeddedSignalsCheckBox.hide()
             self.discreteSignalsCheckBox.hide()
 
-    def searchSignals(self):
+    def searchSignals(self): # пофиксить добавление в массив
         # ищем в slef.dictOfSignals
         string = self.searchLine.text()
         self.resultOfSearchList = []
-        self.searchResultList.clear()
+        self.searchResultTree.clear()
         if (type(string) == str):
             if self.embeddedSignalsCheckBox.checkState() == 2: # 2 означает что на чекбокс тыкнули, 0 - нет
                 for key in self.dictOfSignals.keys():
                     if string in key:
-                        self.resultOfSearchList.append(key)
+                        row = QTreeWidgetItem(self.searchResultTree, [key])
+                        self.searchResultTree.addTopLevelItem(row)
+                        for record in self.dictOfSignals[key]:
+                            child = QTreeWidgetItem(row, [record])
+                            row.addChild(child)
+                            self.resultOfSearchList.append(record)   
             if self.discreteSignalsCheckBox.checkState() == 2:
                 for key in self.dictOfSignals.keys():
                     for record in self.dictOfSignals[key]:
                         if string in record:
                             self.resultOfSearchList.append(record)
+                            row = QTreeWidgetItem(self.searchResultTree, [record])
+                            self.searchResultTree.addTopLevelItem(row)
             if (len(self.resultOfSearchList) == 0):
-                self.searchResultList.addItem('Не найдено')
-                self.searchResultList.setSelectionMode(QAbstractItemView.NoSelection)
+                self.nuberOfSelectedLabel.setText('Не найдено')
             else:
-                self.searchResultList.addItems(self.resultOfSearchList)
-                self.searchResultList.setSelectionMode(QAbstractItemView.MultiSelection)
+                self.nuberOfSelectedLabel.setText('{0} выбрано из {1}'.format(len(self.resultOfSearchList), self.numberOfSignals))
 
     def moveSelectedSignals(self):
-        if self.treeSystems.isHidden(): # если поиск осуществляется через список а не дерево
-            for sel in self.searchResultList.selectedIndexes():
-                item = self.searchResultList.itemFromIndex(sel) # убираем выделение
-                item.setSelected(False)
-                data = item.data(0)
-                if (data not in self.listOfChilds):
-                    self.listOfChilds.append(data) 
-                    self.listSelectedSignals.addItem(data)
-        else: # есди поиск осуществляется через дерево
-            for sel in self.treeSystems.selectedIndexes():
-                item = self.treeSystems.itemFromIndex(sel) # убираем выделение
-                item.setSelected(False)
+        if self.treeSystems.isHidden():
+            currentTree = self.searchResultTree
+        else:
+            currentTree = self.treeSystems
+        for sel in currentTree.selectedIndexes():
+            item = currentTree.itemFromIndex(sel) # убираем выделение
+            item.setSelected(False)
 
-                if (not sel.child(0,0).isValid()): # если нет дочерних элементов
-                    if (sel.data() not in self.listOfChilds): # если элемент уже добавлен
-                        self.listOfChilds.append(sel.data())
-                        self.listSelectedSignals.addItem(sel.data())
-                else:
-                    index = 0
-                    while sel.child(index,0).isValid(): # проходимся по всем дочерним
-                        item = self.treeSystems.itemFromIndex(sel.child(index,0)) # убираем выделение
-                        item.setSelected(False)
-                        selChild = sel.child(index,0).data()
-                        if (selChild not in self.listOfChilds): # если элемент уже добавлен
-                            self.listOfChilds.append(selChild)
-                            self.listSelectedSignals.addItem(selChild)
-                        index += 1
+            if (not sel.child(0,0).isValid()): # если нет дочерних элементов
+                if (sel.data() not in self.listOfChilds): # если элемент уже добавлен
+                    self.listOfChilds.append(sel.data())
+                    self.listSelectedSignals.addItem(sel.data())
+            else:
+                index = 0
+                while sel.child(index,0).isValid(): # проходимся по всем дочерним
+                    item = currentTree.itemFromIndex(sel.child(index,0)) # убираем выделение
+                    item.setSelected(False)
+                    selChild = sel.child(index,0).data()
+                    if (selChild not in self.listOfChilds): # если элемент уже добавлен
+                        self.listOfChilds.append(selChild)
+                        self.listSelectedSignals.addItem(selChild)
+                    index += 1
+        self.labelHowMuchSelected.setText('Выбрано {0} из {1}'.format(len(self.listOfChilds), self.numberOfSignals))
 
     def moveAllSelectedSignals(self):
         if self.treeSystems.isHidden():
-            for index in range(self.searchResultList.count()):
-                item = self.searchResultList.item(index)
-                data = item.data(0)
-                if (data not in self.listOfChilds):
-                    self.listOfChilds.append(data) 
-                    self.listSelectedSignals.addItem(data)
-        else:
-            for index in range(self.treeSystems.topLevelItemCount()):
-                item = self.treeSystems.topLevelItem(index)
-                for childIndex in range(item.childCount()):
-                    childData = item.child(childIndex).data(0,0) # 0,0 потому что элемент у нас туту всего один и дочерних не имеет
-                    if (childData not in self.listOfChilds):
-                        self.listOfChilds.append(childData) 
-                        self.listSelectedSignals.addItem(childData)
+            currentTree = self.searchResultTree
+        else: 
+            currentTree = self.treeSystems
+        for index in range(currentTree.topLevelItemCount()):
+            item = currentTree.topLevelItem(index)
+            for childIndex in range(item.childCount()):
+                childData = item.child(childIndex).data(0,0) # 0,0 потому что элемент у нас туту всего один и дочерних не имеет
+                if (childData not in self.listOfChilds):
+                    self.listOfChilds.append(childData) 
+                    self.listSelectedSignals.addItem(childData)
+        self.labelHowMuchSelected.setText('Выбрано {0} из {1}'.format(len(self.listOfChilds), self.numberOfSignals))
 
     def deleteSelectedSignals(self):
         for item in self.listSelectedSignals.selectedItems():
             deletedItem = self.listSelectedSignals.takeItem(self.listSelectedSignals.row(item))
             self.listOfChilds.remove(deletedItem.data(0))
+        self.labelHowMuchSelected.setText('Выбрано {0} из {1}'.format(len(self.listOfChilds), self.numberOfSignals))
 
     def deleteAllSelectedSignals(self):
         self.listSelectedSignals.clear()
         self.listOfChilds = []
+        self.labelHowMuchSelected.setText('Выбрано 0 из {}'.format(self.numberOfSignals))
 
     def fixSelection(self, modelSelectionOfSelectedItem):
+        if self.treeSystems.isHidden():
+            currentTree = self.searchResultTree
+        else:
+            currentTree = self.treeSystems
+            model = modelSelectionOfSelectedItem
         if len(modelSelectionOfSelectedItem.indexes()) > 0:
             modelIndexOfSelectedItem = modelSelectionOfSelectedItem.indexes()[0]
-            item = self.treeSystems.itemFromIndex(modelIndexOfSelectedItem)
+            item = currentTree.itemFromIndex(modelIndexOfSelectedItem)
             if (item.isSelected()):
                 if (modelIndexOfSelectedItem.child(0,0).isValid()):
                     childs = item.childCount()
                     for index in range(childs):
-                        childItem = self.treeSystems.itemFromIndex(modelIndexOfSelectedItem.child(index, 0))
+                        childItem = currentTree.itemFromIndex(modelIndexOfSelectedItem.child(index, 0))
                         childItem.setSelected(True) 
         else:
-            for sel in self.treeSystems.selectedIndexes():
-                item = self.treeSystems.itemFromIndex(sel)
+            for sel in currentTree.selectedIndexes():
+                item = currentTree.itemFromIndex(sel)
                 flag = False
                 if (item.isSelected() and item.childCount() > 0):
                     for index in range(item.childCount()):
-                        childItem = self.treeSystems.itemFromIndex(sel.child(index, 0))
+                        childItem = currentTree.itemFromIndex(sel.child(index, 0))
                         if not childItem.isSelected():
                             flag = True
                 if flag:
@@ -155,18 +178,13 @@ class Application(QWidget):
 
     def countGroupsAndSignals(self, value):
         self.fixSelection(value)
-
         group = 0
         childs = 0
         for sel in self.treeSystems.selectedIndexes():
-            if (not sel.child(0,0).isValid()):
+            if (not sel.child(0,0).isValid()): # нет дочерних элементов
                 childs += 1
             else:
                 group += 1
-                index = 0
-                while sel.child(index,0).isValid(): # проходимся по всем дочерним
-                    childs += 1
-                    index += 1
         self.labelSelected.setText('Выбрано: {0} групп, {1} сигналов'.format(group, childs))
 
     def initUI(self):
@@ -181,7 +199,7 @@ class Application(QWidget):
         vboxList = QVBoxLayout()
         self.labelSignalSelection = QLabel('Выбор сигнала')
         self.labelSystems = QLabel('Системы')
-        self.labelSystems.mousePressEvent = self.hideTreeWidget
+        self.labelSystems.mousePressEvent = self.showSystemsTree
 
         '-------------------------ListWidget---------------------------'
         self.treeSystems = QTreeWidget()
@@ -202,13 +220,14 @@ class Application(QWidget):
                 self.dictOfSignals[record].append(elem)
                 child = QTreeWidgetItem(row, [elem])
                 row.addChild(child)   
+                self.numberOfSignals += 1
         '----------------------------ListWidget--------------------------'
 
         self.labelSelected = QLabel('Выбрано: 0 групп, 0 сигналов')
         self.labelSearch = QLabel('Поиск')
-        self.labelSearch.mousePressEvent = self.hideTreeWidget
+        self.labelSearch.mousePressEvent = self.showSearchTree
 
-        '--------------------------Hidden--------------------------------'
+        '--------------------------HiddenSearch--------------------------------'
         self.buttonSearch = QPushButton('Искать', self)
         self.buttonSearch.clicked.connect(self.searchSignals)
         self.buttonSearch.hide()
@@ -229,24 +248,40 @@ class Application(QWidget):
         hboxSearchParametersLayout.addWidget(self.embeddedSignalsCheckBox)
         hboxSearchParametersLayout.addWidget(self.discreteSignalsCheckBox)
 
-        self.searchResultList = QListWidget()
-        self.searchResultList.hide()
-        self.searchResultList.setSelectionMode(QAbstractItemView.MultiSelection)
+        self.searchResultTree = QTreeWidget()
+        self.searchResultTree.setHeaderHidden(1)
+        self.searchResultTree.setColumnCount(1)
+        self.searchResultTree.hide()
+        self.searchResultTree.setSelectionMode(QAbstractItemView.MultiSelection)
+        self.searchResultTree.selectionModel().selectionChanged.connect(self.fixSelection)
 
-        self.nuberOfSelectedLabel = QLabel('0 выбрано из "сколько-то"')
+        self.nuberOfSelectedLabel = QLabel('0 выбрано из {}'.format(self.numberOfSignals))
         self.nuberOfSelectedLabel.hide()
-        '--------------------------Hidden--------------------------------'
+        '--------------------------HiddenSearch--------------------------------'
 
-        self.labelDesignProtocolSignals = QLabel('Сигналы проектных протоколов')
+        '--------------------------ProjectProtocols----------------------------'
+        self.ProjectProtocolsTree = QTreeWidget()
+        self.ProjectProtocolsTree.setHeaderHidden(1)
+        self.ProjectProtocolsTree.setColumnCount(1)
+        self.ProjectProtocolsTree.hide()
+
+        self.countingLabel = QLabel('Выбрано 0 групп, 0 сигналов')
+        self.countingLabel.hide()
+        '--------------------------ProjectProtocols----------------------------'
+
+        self.labelProjectProtocolSignals = QLabel('Сигналы проектных протоколов')
+        self.labelProjectProtocolSignals.mousePressEvent = self.showProjectProtocolsTree
         self.labelStoredProtocols = QLabel('Сохраненные протоколы')
         widgets = (self.labelSignalSelection, 
                    self.labelSystems, 
                    self.treeSystems, 
                    self.labelSelected, 
                    self.labelSearch, 
-                   self.searchResultList, 
+                   self.searchResultTree, 
                    self.nuberOfSelectedLabel, 
-                   self.labelDesignProtocolSignals, 
+                   self.labelProjectProtocolSignals,
+                   self.ProjectProtocolsTree,
+                   self.countingLabel, 
                    self.labelStoredProtocols)
         for widget in widgets:
             vboxList.addWidget(widget)
@@ -281,7 +316,7 @@ class Application(QWidget):
         self.listSelectedSignals = QListWidget()
         self.listSelectedSignals.setSelectionMode(QAbstractItemView.MultiSelection)
 
-        self.labelHowMuchSelected = QLabel('Выбрано 3 из 3')
+        self.labelHowMuchSelected = QLabel('Выбрано 0 из {}'.format(self.numberOfSignals))
         widgets = (self.labelSelectedSignals, self.listSelectedSignals, self.labelHowMuchSelected)
         for widget in widgets:
             vboxSelectedList.addWidget(widget)
@@ -311,8 +346,19 @@ class Application(QWidget):
         for lay in layouts:
             mainVBox.addLayout(lay)
 
-        self.setLayout(mainVBox)
+        '-------------------------Tabs-------------------------'
+        self.signalsTabWrapper = QWidget()
+        self.signalsTabWrapper.setLayout(mainVBox)
 
+        self.signalsTab = QTabWidget()
+        self.signalsTab.addTab(self.signalsTabWrapper, 'Сигналы для показа')
+        self.signalsTab.addTab(QWidget(), 'Настройка показа') # Вместо QWidget() вставить содержимое вкладки
+
+        mainLayout = QVBoxLayout()
+        mainLayout.addWidget(self.signalsTab)
+        '-------------------------Tabs-------------------------'
+
+        self.setLayout(mainLayout)
         self.show()
 
 if __name__ == '__main__':

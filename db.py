@@ -61,7 +61,7 @@ class MPK(BaseModel):
     # меняет значение поля, возвращает значение которое было в поле до изменения
     @classmethod
     def insert_one(cls, id, column, value):
-        record = cls.select().where(cls.id_kks == id).get()
+        record = cls.select().where(cls.id == id).get() # cls.id_kks / cls.id
         previous_value = None
         if (column == 'KKS'):
             previous_value = record.KKS
@@ -257,7 +257,8 @@ class DatabaseManipulation(object):
 
 if __name__ == '__main__':
     my_tables = DatabaseManipulation(pg_db, MPK, Archive)
-    my_tables.insert_one(7,'Xmax_', 2000)
+    for i in range(8):
+        my_tables.insert_one(3+i,'Xmin_', 3000 + i*100)
     # print(Archive.select_column('value', 'id_kks', 20))
     # to_insert = {'id_kks': 128, 'KKS': 'DFJFDJKDF', 'Суффикс': '123'}
     # my_tables.insert_many([to_insert])
